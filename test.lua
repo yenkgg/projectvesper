@@ -4,9 +4,9 @@ local Passed, Statement = pcall(function()
 	local library = {
 		Renders = {},
 		Connections = {},
-		Folder = "PuppyWare", -- Change if wanted
-		Assets = "Assets", -- Change if wanted
-		Configs = "Configs" -- Change if wanted
+		Folder = "PuppyWare",
+		Assets = "Assets",
+		Configs = "Configs"
 	}
 	local utility = {}
 	-- [[ // Tables // ]]
@@ -22,7 +22,7 @@ local Passed, Statement = pcall(function()
 	local tws = game:GetService("TweenService")
 	local uis = game:GetService("UserInputService")
 	local cre = game:GetService("CoreGui")
-	local mobile = uis.TouchEnabled and not uis.KeyboardEnabled -- Detect mobile
+	local mobile = uis.TouchEnabled and not uis.KeyboardEnabled
 	-- [[ // Functions // ]]
 	function utility:RenderObject(RenderType, RenderProperties, RenderHidden)
 		local Render = Instance.new(RenderType)
@@ -46,6 +46,14 @@ local Passed, Statement = pcall(function()
 		library.Connections[#library.Connections + 1] = Connection
 		--
 		return Connection
+	end
+	--
+	-- Bind both mouse and touch to the same button
+	function utility:BindButton(Button, Callback)
+		utility:CreateConnection(Button.MouseButton1Click, Callback)
+		utility:CreateConnection(Button.TouchTap, function()
+			Callback()
+		end)
 	end
 	--
 	function utility:MouseLocation()
@@ -79,18 +87,15 @@ local Passed, Statement = pcall(function()
 		--
 		local Window = {
 			Pages = {},
-			Accent = Color3.fromRGB(255, 120, 30), -- Color3.fromRGB(136, 180, 57) -- Change if wanted
+			Accent = Color3.fromRGB(255, 120, 30),
 			Enabled = true,
-			Key = Enum.KeyCode.Z, -- Change if wanted
+			Key = Enum.KeyCode.Z,
 			Mobile = mobile
 		}
 		--
-		-- Mobile sizing: use viewport-aware size so nothing goes off-screen
 		local viewport = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize or Vector2.new(1920, 1080)
-		local isSmallMobile = mobile and viewport.X < 700
 		local winSize
 		if mobile then
-			-- Fit within 90% of screen on mobile
 			local w = math.clamp(viewport.X * 0.92, 320, 560)
 			local h = math.clamp(viewport.Y * 0.75, 320, 480)
 			winSize = UDim2.new(0, w, 0, h)
@@ -108,6 +113,7 @@ local Passed, Statement = pcall(function()
 				ZIndexBehavior = "Global"
 			})
 			-- //
+			-- Draggable only on PC to avoid intercepting touch input on mobile
 			local ScreenGui_MainFrame = utility:RenderObject("Frame", {
 				AnchorPoint = Vector2.new(0.5, 0.5),
 				BackgroundColor3 = Color3.fromRGB(25, 25, 25),
@@ -118,8 +124,8 @@ local Passed, Statement = pcall(function()
 				Parent = ScreenGui,
 				Position = UDim2.new(0.5, 0, 0.5, 0),
 				Size = winSize,
-				Active = true,
-				Draggable = true
+				Active = not mobile,     -- PC only
+				Draggable = not mobile   -- PC only
 			})
 			-- //
 			local ScreenGui_MainFrame_InnerBorder = utility:RenderObject("Frame", {
@@ -312,7 +318,7 @@ local Passed, Statement = pcall(function()
 				if mobile then
 					local ToggleButton = utility:RenderObject("TextButton", {
 						BackgroundColor3 = Color3.fromRGB(255, 120, 30),
-						BackgroundTransparency = 0.5, -- Translucent
+						BackgroundTransparency = 0.5,
 						BorderColor3 = Color3.fromRGB(255, 255, 255),
 						BorderMode = "Inset",
 						BorderSizePixel = 1,
@@ -341,23 +347,9 @@ local Passed, Statement = pcall(function()
 						Parent = ToggleButton
 					})
 
-					-- Toggle visibility on tap
-					utility:CreateConnection(ToggleButton.MouseButton1Click, function()
+					utility:BindButton(ToggleButton, function()
 						Window.Enabled = not Window.Enabled
 						Window:Fade(Window.Enabled)
-					end)
-
-					-- Press feedback
-					utility:CreateConnection(ToggleButton.MouseButton1Down, function()
-						tws:Create(ToggleButton, TweenInfo.new(0.1), {
-							BackgroundTransparency = 0.7
-						}):Play()
-					end)
-
-					utility:CreateConnection(ToggleButton.MouseButton1Up, function()
-						tws:Create(ToggleButton, TweenInfo.new(0.1), {
-							BackgroundTransparency = 0.5
-						}):Play()
 					end)
 				end
 			end
@@ -472,7 +464,6 @@ local Passed, Statement = pcall(function()
 				Visible = false
 			})
 			-- //
-			-- On mobile: single scrolling column. On PC: two side-by-side columns.
 			local Page_Page_Left = utility:RenderObject("Frame", {
 				BackgroundColor3 = Color3.fromRGB(0, 0, 0),
 				BackgroundTransparency = 1,
@@ -491,10 +482,10 @@ local Passed, Statement = pcall(function()
 				Parent = Page_Page,
 				Position = mobile and UDim2.new(0, 0, 0, 0) or UDim2.new(0.5, 10, 0, 0),
 				Size = mobile and UDim2.new(1, 0, 1, 0) or UDim2.new(0.5, -10, 1, 0),
-				Visible = not mobile -- Hide right column on mobile
+				Visible = not mobile
 			})
 			-- //
-			-- On mobile, use a ScrollingFrame so all sections are reachable
+			-- On mobile: use a ScrollingFrame so all sections are reachable
 			local LeftScroll = utility:RenderObject("ScrollingFrame", {
 				BackgroundColor3 = Color3.fromRGB(0, 0, 0),
 				BackgroundTransparency = 1,
@@ -508,6 +499,8 @@ local Passed, Statement = pcall(function()
 				ScrollBarThickness = 5,
 				ScrollBarImageTransparency = 0.4,
 				VerticalScrollBarInset = "None",
+				ScrollingDirection = Enum.ScrollingDirection.Y,
+				ElasticBehavior = Enum.ElasticBehavior.Never,
 				Visible = mobile
 			})
 			utility:RenderObject("UIListLayout", {
@@ -561,18 +554,10 @@ local Passed, Statement = pcall(function()
 			end
 			--
 			do -- // Connections
-				utility:CreateConnection(Page_Tab_Button.MouseButton1Click, function(Input)
+				utility:BindButton(Page_Tab_Button, function()
 					if not Page.Open then
 						Page:Set(true)
 					end
-				end)
-				--
-				utility:CreateConnection(Page_Tab_Button.MouseEnter, function(Input)
-					Page_Tab_Image.ImageColor3 = Color3.fromRGB(172, 172, 172)
-				end)
-				--
-				utility:CreateConnection(Page_Tab_Button.MouseLeave, function(Input)
-					Page_Tab_Image.ImageColor3 = Page.Open and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(90, 90, 90)
 				end)
 			end
 		end
@@ -587,7 +572,6 @@ local Passed, Statement = pcall(function()
 		--
 		local Section = {
 			Name = (Properties.name or Properties.Name or Properties.title or Properties.Title or "New Section"),
-			-- On mobile, let the section auto-size to content instead of fixed height
 			Size = (Properties.size or Properties.Size or (mobile and 200 or 150)),
 			Side = (Properties.side or Properties.Side or "Left"),
 			Content = {},
@@ -596,7 +580,6 @@ local Passed, Statement = pcall(function()
 		}
 		--
 		do
-			-- On mobile, parent to the page's mobile scroll frame; on PC, parent to Left/Right column
 			local parentFrame = mobile and Section.Page.MobileScroll or Section.Page[Section.Side]
 
 			local Section_Holder = utility:RenderObject("Frame", {
@@ -606,7 +589,6 @@ local Passed, Statement = pcall(function()
 				BorderMode = "Inset",
 				BorderSizePixel = 1,
 				Parent = parentFrame,
-				-- On mobile use fixed section height (content scrolls inside); on PC same behavior
 				Size = mobile and UDim2.new(1, -12, 0, 320) or UDim2.new(1, 0, 0, Section.Size),
 				ZIndex = 2
 			})
@@ -788,7 +770,9 @@ local Passed, Statement = pcall(function()
 				ScrollBarImageTransparency = 0,
 				ScrollBarThickness = 5,
 				TopImage = "rbxassetid://7783554086",
-				VerticalScrollBarInset = "None"
+				VerticalScrollBarInset = "None",
+				ScrollingDirection = Enum.ScrollingDirection.Y,
+				ElasticBehavior = Enum.ElasticBehavior.Never
 			})
 			-- //
 			local Frame_ContentHolder_List = utility:RenderObject("UIListLayout", {
@@ -847,11 +831,11 @@ local Passed, Statement = pcall(function()
                     Holder_Extra_ArrowDown.Visible = (Holder_Frame_ContentHolder.CanvasPosition.Y + 1 < (Holder_Frame_ContentHolder.AbsoluteCanvasSize.Y - Holder_Frame_ContentHolder.AbsoluteSize.Y))
 				end)
                 --
-                utility:CreateConnection(Holder_Extra_ArrowUp.MouseButton1Click, function()
+                utility:BindButton(Holder_Extra_ArrowUp, function()
 					Holder_Frame_ContentHolder.CanvasPosition = Vector2.new(0, math.clamp(Holder_Frame_ContentHolder.CanvasPosition.Y - 10, 0, Holder_Frame_ContentHolder.AbsoluteCanvasSize.Y - Holder_Frame_ContentHolder.AbsoluteSize.Y))
 				end)
                 --
-                utility:CreateConnection(Holder_Extra_ArrowDown.MouseButton1Click, function()
+                utility:BindButton(Holder_Extra_ArrowDown, function()
 					Holder_Frame_ContentHolder.CanvasPosition = Vector2.new(0, math.clamp(Holder_Frame_ContentHolder.CanvasPosition.Y + 10, 0, Holder_Frame_ContentHolder.AbsoluteCanvasSize.Y - Holder_Frame_ContentHolder.AbsoluteSize.Y))
 				end)
 			end
@@ -914,26 +898,6 @@ local Passed, Statement = pcall(function()
 					TextXAlignment = "Left"
 				})
 				--
-				local Content_Holder_Title2 = utility:RenderObject("TextLabel", {
-					AnchorPoint = Vector2.new(0, 0),
-					BackgroundColor3 = Color3.fromRGB(0, 0, 0),
-					BackgroundTransparency = 1,
-					BorderColor3 = Color3.fromRGB(0, 0, 0),
-					BorderSizePixel = 0,
-					Parent = Content_Holder,
-					Position = UDim2.new(0, 41, 0, 0),
-					Size = UDim2.new(1, -41, 1, 0),
-					ZIndex = 3,
-					Font = "Code",
-					RichText = true,
-					Text = Content.Name,
-					TextColor3 = Color3.fromRGB(205, 205, 205),
-					TextSize = 9,
-					TextStrokeTransparency = 1,
-					TextTransparency = 0.5,
-					TextXAlignment = "Left"
-				})
-				--
 				local Content_Holder_Button = utility:RenderObject("TextButton", {
 					BackgroundColor3 = Color3.fromRGB(0, 0, 0),
 					BackgroundTransparency = 1,
@@ -977,16 +941,8 @@ local Passed, Statement = pcall(function()
 				end
 				--
 				do -- // Connections
-					utility:CreateConnection(Content_Holder_Button.MouseButton1Click, function(Input)
+					utility:BindButton(Content_Holder_Button, function()
 						Content:Set(not Content:Get())
-					end)
-					--
-					utility:CreateConnection(Content_Holder_Button.MouseEnter, function(Input)
-						Outline_Frame_Gradient.Color = ColorSequence.new(Color3.fromRGB(255, 255, 255), Color3.fromRGB(180, 180, 180))
-					end)
-					--
-					utility:CreateConnection(Content_Holder_Button.MouseLeave, function(Input)
-						Outline_Frame_Gradient.Color = ColorSequence.new(Color3.fromRGB(255, 255, 255), Color3.fromRGB(140, 140, 140))
 					end)
 				end
 				--
@@ -1052,26 +1008,6 @@ local Passed, Statement = pcall(function()
 						TextColor3 = Color3.fromRGB(205, 205, 205),
 						TextSize = 9,
 						TextStrokeTransparency = 1,
-						TextXAlignment = "Left"
-					})
-					--
-					local Content_Holder_Title2 = utility:RenderObject("TextLabel", {
-						AnchorPoint = Vector2.new(0, 0),
-						BackgroundColor3 = Color3.fromRGB(0, 0, 0),
-						BackgroundTransparency = 1,
-						BorderColor3 = Color3.fromRGB(0, 0, 0),
-						BorderSizePixel = 0,
-						Parent = Content_Holder,
-						Position = UDim2.new(0, 41, 0, 4),
-						Size = UDim2.new(1, -41, 0, 10),
-						ZIndex = 3,
-						Font = "Code",
-						RichText = true,
-						Text = Content.Name,
-						TextColor3 = Color3.fromRGB(205, 205, 205),
-						TextSize = 9,
-						TextStrokeTransparency = 1,
-						TextTransparency = 0.5,
 						TextXAlignment = "Left"
 					})
 				end
@@ -1142,27 +1078,6 @@ local Passed, Statement = pcall(function()
 					RenderTime = 0.15
 				})
 				--
-				local Frame_Slider_Title2 = utility:RenderObject("TextLabel", {
-					AnchorPoint = Vector2.new(0.5, 0),
-					BackgroundColor3 = Color3.fromRGB(0, 0, 0),
-					BackgroundTransparency = 1,
-					BorderColor3 = Color3.fromRGB(0, 0, 0),
-					BorderSizePixel = 0,
-					Parent = Outline_Frame_Slider,
-					Position = UDim2.new(1, 0, 0.5, 1),
-					Size = UDim2.new(0, 2, 1, 0),
-					ZIndex = 3,
-					Font = "Code",
-					RichText = true,
-					Text = "",
-					TextColor3 = Color3.fromRGB(255, 255, 255),
-					TextSize = 11,
-					TextStrokeTransparency = 0.5,
-					TextTransparency = 0,
-					TextXAlignment = "Center",
-					RenderTime = 0.15
-				})
-				--
 				do -- // Functions
 					function Content:Set(state)
 						Content.State = math.clamp(math.round(state * Content.Decimals) / Content.Decimals, Content.Min, Content.Max)
@@ -1173,10 +1088,17 @@ local Passed, Statement = pcall(function()
 						Content.Callback(Content:Get())
 					end
 					--
+					function Content:RefreshAt(mouseX)
+						local relativeX = math.clamp(mouseX - Holder_Outline_Frame.AbsolutePosition.X, 0, Holder_Outline_Frame.AbsoluteSize.X)
+						local alpha = relativeX / Holder_Outline_Frame.AbsoluteSize.X
+						local raw = Content.Min + (Content.Max - Content.Min) * alpha
+						local stepped = math.floor(raw * Content.Decimals) / Content.Decimals
+						Content:Set(math.clamp(stepped, Content.Min, Content.Max))
+					end
+					--
 					function Content:Refresh()
 						local Mouse = utility:MouseLocation()
-						--
-						Content:Set(math.clamp(math.floor((Content.Min + (Content.Max - Content.Min) * math.clamp(Mouse.X - Outline_Frame_Slider.AbsolutePosition.X, 0, Holder_Outline_Frame.AbsoluteSize.X) / Holder_Outline_Frame.AbsoluteSize.X) * Content.Decimals) / Content.Decimals, Content.Min, Content.Max))
+						Content:RefreshAt(Mouse.X)
 					end
 					--
 					function Content:Get()
@@ -1185,23 +1107,13 @@ local Passed, Statement = pcall(function()
 				end
 				--
 				do -- // Connections
-					utility:CreateConnection(Content_Holder_Button.MouseButton1Down, function(Input)
+					-- Mouse support
+					utility:CreateConnection(Content_Holder_Button.MouseButton1Down, function()
 						Content:Refresh()
-						--
 						Content.Holding = true
                         --
                         Outline_Frame_Gradient.Color = ColorSequence.new(Color3.fromRGB(255, 255, 255), Color3.fromRGB(215, 215, 215))
                         Frame_Slider_Gradient.Color = ColorSequence.new(Color3.fromRGB(255, 255, 255), Color3.fromRGB(215, 215, 215))
-					end)
-                    --
-					utility:CreateConnection(Content_Holder_Button.MouseEnter, function(Input)
-						Outline_Frame_Gradient.Color = ColorSequence.new(Color3.fromRGB(255, 255, 255), Color3.fromRGB(215, 215, 215))
-                        Frame_Slider_Gradient.Color = ColorSequence.new(Color3.fromRGB(255, 255, 255), Color3.fromRGB(215, 215, 215))
-					end)
-					--
-					utility:CreateConnection(Content_Holder_Button.MouseLeave, function(Input)
-						Outline_Frame_Gradient.Color = ColorSequence.new(Color3.fromRGB(255, 255, 255), Content.Holding and Color3.fromRGB(215, 215, 215) or Color3.fromRGB(175, 175, 175))
-                        Frame_Slider_Gradient.Color = ColorSequence.new(Color3.fromRGB(255, 255, 255), Content.Holding and Color3.fromRGB(215, 215, 215) or Color3.fromRGB(175, 175, 175))
 					end)
 					--
 					utility:CreateConnection(uis.InputChanged, function(Input)
@@ -1216,6 +1128,30 @@ local Passed, Statement = pcall(function()
                             --
                             Outline_Frame_Gradient.Color = ColorSequence.new(Color3.fromRGB(255, 255, 255), Color3.fromRGB(175, 175, 175))
                         	Frame_Slider_Gradient.Color = ColorSequence.new(Color3.fromRGB(255, 255, 255), Color3.fromRGB(175, 175, 175))
+						end
+					end)
+
+					-- Touch support
+					utility:CreateConnection(Content_Holder_Button.InputBegan, function(Input)
+						if Input.UserInputType == Enum.UserInputType.Touch then
+							Content:RefreshAt(Input.Position.X)
+							Content.Holding = true
+							Outline_Frame_Gradient.Color = ColorSequence.new(Color3.fromRGB(255, 255, 255), Color3.fromRGB(215, 215, 215))
+							Frame_Slider_Gradient.Color = ColorSequence.new(Color3.fromRGB(255, 255, 255), Color3.fromRGB(215, 215, 215))
+						end
+					end)
+					--
+					utility:CreateConnection(uis.InputChanged, function(Input)
+						if Content.Holding and Input.UserInputType == Enum.UserInputType.Touch then
+							Content:RefreshAt(Input.Position.X)
+						end
+					end)
+					--
+					utility:CreateConnection(uis.InputEnded, function(Input)
+						if Content.Holding and Input.UserInputType == Enum.UserInputType.Touch then
+							Content.Holding = false
+							Outline_Frame_Gradient.Color = ColorSequence.new(Color3.fromRGB(255, 255, 255), Color3.fromRGB(175, 175, 175))
+							Frame_Slider_Gradient.Color = ColorSequence.new(Color3.fromRGB(255, 255, 255), Color3.fromRGB(175, 175, 175))
 						end
 					end)
 				end
@@ -1283,26 +1219,6 @@ local Passed, Statement = pcall(function()
 					TextXAlignment = "Left"
 				})
 				--
-				local Content_Holder_Title2 = utility:RenderObject("TextLabel", {
-					AnchorPoint = Vector2.new(0, 0),
-					BackgroundColor3 = Color3.fromRGB(0, 0, 0),
-					BackgroundTransparency = 1,
-					BorderColor3 = Color3.fromRGB(0, 0, 0),
-					BorderSizePixel = 0,
-					Parent = Content_Holder,
-					Position = UDim2.new(0, 41, 0, 4),
-					Size = UDim2.new(1, -41, 0, 10),
-					ZIndex = 3,
-					Font = "Code",
-					RichText = true,
-					Text = Content.Name,
-					TextColor3 = Color3.fromRGB(205, 205, 205),
-					TextSize = 9,
-					TextStrokeTransparency = 1,
-					TextTransparency = 0.5,
-					TextXAlignment = "Left"
-				})
-				--
 				local Content_Holder_Button = utility:RenderObject("TextButton", {
 					BackgroundColor3 = Color3.fromRGB(0, 0, 0),
 					BackgroundTransparency = 1,
@@ -1349,25 +1265,6 @@ local Passed, Statement = pcall(function()
 					TextXAlignment = "Left"
 				})
 				--
-				local Outline_Frame_Title2 = utility:RenderObject("TextLabel", {
-					BackgroundColor3 = Color3.fromRGB(0, 0, 0),
-					BackgroundTransparency = 1,
-					BorderColor3 = Color3.fromRGB(0, 0, 0),
-					BorderSizePixel = 0,
-					Parent = Holder_Outline_Frame,
-					Position = UDim2.new(0, 8, 0, 0),
-					Size = UDim2.new(1, 0, 1, 0),
-					ZIndex = 3,
-					Font = "Code",
-					RichText = true,
-					Text = "",
-					TextColor3 = Color3.fromRGB(155, 155, 155),
-					TextSize = 9,
-					TextStrokeTransparency = 1,
-					TextTransparency = 0,
-					TextXAlignment = "Left"
-				})
-				--
 				local Outline_Frame_Arrow = utility:RenderObject("ImageLabel", {
 					BackgroundColor3 = Color3.fromRGB(0, 0, 0),
 					BackgroundTransparency = 1,
@@ -1386,7 +1283,6 @@ local Passed, Statement = pcall(function()
 						Content.State = state
 						--
 						Outline_Frame_Title.Text = Content.Options[Content:Get()]
-						Outline_Frame_Title2.Text = Content.Options[Content:Get()]
 						--
 						Content.Callback(Content:Get())
 						--
@@ -1470,25 +1366,6 @@ local Passed, Statement = pcall(function()
 								TextXAlignment = "Left"
 							})
 							--
-							local Frame_Option_Title2 = utility:RenderObject("TextLabel", {
-								BackgroundColor3 = Color3.fromRGB(0, 0, 0),
-								BackgroundTransparency = 1,
-								BorderColor3 = Color3.fromRGB(0, 0, 0),
-								BorderSizePixel = 0,
-								Parent = Outline_Frame_Option,
-								Position = UDim2.new(0, 8, 0, 0),
-								Size = UDim2.new(1, 0, 1, 0),
-								ZIndex = 6,
-								Font = "Code",
-								RichText = true,
-								Text = tostring(Option),
-								TextColor3 = Index == Content.State and Content.Window.Accent or Color3.fromRGB(205, 205, 205),
-								TextSize = 9,
-								TextStrokeTransparency = 1,
-								TextTransparency = 0.5,
-								TextXAlignment = "Left"
-							})
-							--
 							local Frame_Option_Button = utility:RenderObject("TextButton", {
 								BackgroundColor3 = Color3.fromRGB(0, 0, 0),
 								BackgroundTransparency = 1,
@@ -1501,24 +1378,18 @@ local Passed, Statement = pcall(function()
 							})
 							--
 							do -- // Connections
-								local Clicked = utility:CreateConnection(Frame_Option_Button.MouseButton1Click, function(Input)
+								local Clicked = utility:CreateConnection(Frame_Option_Button.MouseButton1Click, function()
+									Content:Set(Index)
+								end)
+								local Touched = utility:CreateConnection(Frame_Option_Button.TouchTap, function()
 									Content:Set(Index)
 								end)
 								--
-								local Entered = utility:CreateConnection(Frame_Option_Button.MouseEnter, function(Input)
-									Outline_Frame_Option.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-								end)
-								--
-								local Left = utility:CreateConnection(Frame_Option_Button.MouseLeave, function(Input)
-									Outline_Frame_Option.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-								end)
-								--
 								Connections[#Connections + 1] = Clicked
-								Connections[#Connections + 1] = Entered
-								Connections[#Connections + 1] = Left
+								Connections[#Connections + 1] = Touched
 							end
 							--
-							Open[#Open + 1] = {Index, Frame_Option_Title, Frame_Option_Title2, Outline_Frame_Option, Frame_Option_Button}
+							Open[#Open + 1] = {Index, Frame_Option_Title, Outline_Frame_Option, Frame_Option_Button}
 						end
 						--
 						do -- // Functions
@@ -1531,13 +1402,11 @@ local Passed, Statement = pcall(function()
 									Value:Disconnect()
 								end
 								--
-								InputCheck:Disconnect()
+								if InputCheck then InputCheck:Disconnect() end
 								--
 								for Index, Value in pairs(Open) do
-									Value[2]:Remove()
 									Value[3]:Remove()
 									Value[4]:Remove()
-									Value[5]:Remove()
 								end
 								--
 								Content_Open_Holder:Remove()
@@ -1554,7 +1423,6 @@ local Passed, Statement = pcall(function()
 							function Content.Content:Refresh(state)
 								for Index, Value in pairs(Open) do
 									Value[2].TextColor3 = Value[1] == Content.State and Content.Window.Accent or Color3.fromRGB(205, 205, 205)
-									Value[3].TextColor3 = Value[1] == Content.State and Content.Window.Accent or Color3.fromRGB(205, 205, 205)
 								end
 							end
 						end
@@ -1568,10 +1436,16 @@ local Passed, Statement = pcall(function()
 							task.wait()
 							--
 							InputCheck = utility:CreateConnection(uis.InputBegan, function(Input)
-								if Content.Content.Open and Input.UserInputType == Enum.UserInputType.MouseButton1 then
+								if Content.Content.Open and (Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch) then
 									local Mouse = utility:MouseLocation()
+									local pos
+									if Input.UserInputType == Enum.UserInputType.Touch then
+										pos = Vector2.new(Input.Position.X, Input.Position.Y)
+									else
+										pos = Mouse
+									end
 									--
-									if not (Mouse.X > Content_Open_Holder.AbsolutePosition.X  and Mouse.Y > (Content_Open_Holder.AbsolutePosition.Y + 36) and Mouse.X < (Content_Open_Holder.AbsolutePosition.X + Content_Open_Holder.AbsoluteSize.X) and Mouse.Y < (Content_Open_Holder.AbsolutePosition.Y + Content_Open_Holder.AbsoluteSize.Y + 36)) then
+									if not (pos.X > Content_Open_Holder.AbsolutePosition.X and pos.Y > (Content_Open_Holder.AbsolutePosition.Y + 36) and pos.X < (Content_Open_Holder.AbsolutePosition.X + Content_Open_Holder.AbsoluteSize.X) and pos.Y < (Content_Open_Holder.AbsolutePosition.Y + Content_Open_Holder.AbsoluteSize.Y + 36)) then
 										Content.Section:CloseContent()
 									end
 								end
@@ -1581,20 +1455,12 @@ local Passed, Statement = pcall(function()
 				end
 				--
 				do -- // Connections
-					utility:CreateConnection(Content_Holder_Button.MouseButton1Down, function(Input)
+					utility:BindButton(Content_Holder_Button, function()
 						if Content.Content.Open then
 							Content.Section:CloseContent()
 						else
 							Content:Open()
 						end
-					end)
-					--
-					utility:CreateConnection(Content_Holder_Button.MouseEnter, function(Input)
-						Holder_Outline_Frame.BackgroundColor3 = Color3.fromRGB(46, 46, 46)
-					end)
-					--
-					utility:CreateConnection(Content_Holder_Button.MouseLeave, function(Input)
-						Holder_Outline_Frame.BackgroundColor3 = Content.Content.Open and Color3.fromRGB(46, 46, 46) or Color3.fromRGB(36, 36, 36)
 					end)
 				end
 				--
@@ -1663,26 +1529,6 @@ local Passed, Statement = pcall(function()
 					TextXAlignment = "Left"
 				})
 				--
-				local Content_Holder_Title2 = utility:RenderObject("TextLabel", {
-					AnchorPoint = Vector2.new(0, 0),
-					BackgroundColor3 = Color3.fromRGB(0, 0, 0),
-					BackgroundTransparency = 1,
-					BorderColor3 = Color3.fromRGB(0, 0, 0),
-					BorderSizePixel = 0,
-					Parent = Content_Holder,
-					Position = UDim2.new(0, 41, 0, 4),
-					Size = UDim2.new(1, -41, 0, 10),
-					ZIndex = 3,
-					Font = "Code",
-					RichText = true,
-					Text = Content.Name,
-					TextColor3 = Color3.fromRGB(205, 205, 205),
-					TextSize = 9,
-					TextStrokeTransparency = 1,
-					TextTransparency = 0.5,
-					TextXAlignment = "Left"
-				})
-				--
 				local Content_Holder_Button = utility:RenderObject("TextButton", {
 					BackgroundColor3 = Color3.fromRGB(0, 0, 0),
 					BackgroundTransparency = 1,
@@ -1704,13 +1550,6 @@ local Passed, Statement = pcall(function()
 					ZIndex = 3
 				})
 				-- //
-				local Outline_Frame_Gradient = utility:RenderObject("UIGradient", {
-					Color = ColorSequence.new(Color3.fromRGB(255, 255, 255), Color3.fromRGB(220, 220, 220)),
-					Enabled = true,
-					Rotation = 270,
-					Parent = Holder_Outline_Frame
-				})
-				--
 				local Outline_Frame_Title = utility:RenderObject("TextLabel", {
 					BackgroundColor3 = Color3.fromRGB(0, 0, 0),
 					BackgroundTransparency = 1,
@@ -1726,25 +1565,6 @@ local Passed, Statement = pcall(function()
 					TextColor3 = Color3.fromRGB(155, 155, 155),
 					TextSize = 9,
 					TextStrokeTransparency = 1,
-					TextXAlignment = "Left"
-				})
-				--
-				local Outline_Frame_Title2 = utility:RenderObject("TextLabel", {
-					BackgroundColor3 = Color3.fromRGB(0, 0, 0),
-					BackgroundTransparency = 1,
-					BorderColor3 = Color3.fromRGB(0, 0, 0),
-					BorderSizePixel = 0,
-					Parent = Holder_Outline_Frame,
-					Position = UDim2.new(0, 8, 0, 0),
-					Size = UDim2.new(1, 0, 1, 0),
-					ZIndex = 3,
-					Font = "Code",
-					RichText = true,
-					Text = "",
-					TextColor3 = Color3.fromRGB(155, 155, 155),
-					TextSize = 9,
-					TextStrokeTransparency = 1,
-					TextTransparency = 0,
 					TextXAlignment = "Left"
 				})
 				--
@@ -1771,7 +1591,6 @@ local Passed, Statement = pcall(function()
 						Serialised = Serialised == "" and "-" or Serialised
 						--
 						Outline_Frame_Title.Text = Serialised
-						Outline_Frame_Title2.Text = Serialised
 						--
 						Content.Callback(Content:Get())
 						--
@@ -1855,25 +1674,6 @@ local Passed, Statement = pcall(function()
 								TextXAlignment = "Left"
 							})
 							--
-							local Frame_Option_Title2 = utility:RenderObject("TextLabel", {
-								BackgroundColor3 = Color3.fromRGB(0, 0, 0),
-								BackgroundTransparency = 1,
-								BorderColor3 = Color3.fromRGB(0, 0, 0),
-								BorderSizePixel = 0,
-								Parent = Outline_Frame_Option,
-								Position = UDim2.new(0, 8, 0, 0),
-								Size = UDim2.new(1, 0, 1, 0),
-								ZIndex = 6,
-								Font = "Code",
-								RichText = true,
-								Text = tostring(Option),
-								TextColor3 = table.find(Content.State, Index) and Content.Window.Accent or Color3.fromRGB(205, 205, 205),
-								TextSize = 9,
-								TextStrokeTransparency = 1,
-								TextTransparency = 0.5,
-								TextXAlignment = "Left"
-							})
-							--
 							local Frame_Option_Button = utility:RenderObject("TextButton", {
 								BackgroundColor3 = Color3.fromRGB(0, 0, 0),
 								BackgroundTransparency = 1,
@@ -1886,7 +1686,7 @@ local Passed, Statement = pcall(function()
 							})
 							--
 							do -- // Connections
-								local Clicked = utility:CreateConnection(Frame_Option_Button.MouseButton1Click, function(Input)
+								local function onActivate()
 									local NewTable = Content:Get()
 									--
 									if table.find(NewTable, Index) then
@@ -1900,22 +1700,16 @@ local Passed, Statement = pcall(function()
 									end
 									--
 									Content:Set(NewTable)
-								end)
+								end
 								--
-								local Entered = utility:CreateConnection(Frame_Option_Button.MouseEnter, function(Input)
-									Outline_Frame_Option.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-								end)
-								--
-								local Left = utility:CreateConnection(Frame_Option_Button.MouseLeave, function(Input)
-									Outline_Frame_Option.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-								end)
+								local Clicked = utility:CreateConnection(Frame_Option_Button.MouseButton1Click, onActivate)
+								local Touched = utility:CreateConnection(Frame_Option_Button.TouchTap, onActivate)
 								--
 								Connections[#Connections + 1] = Clicked
-								Connections[#Connections + 1] = Entered
-								Connections[#Connections + 1] = Left
+								Connections[#Connections + 1] = Touched
 							end
 							--
-							Open[#Open + 1] = {Index, Frame_Option_Title, Frame_Option_Title2, Outline_Frame_Option, Frame_Option_Button}
+							Open[#Open + 1] = {Index, Frame_Option_Title, Outline_Frame_Option, Frame_Option_Button}
 						end
 						--
 						do -- // Functions
@@ -1928,13 +1722,11 @@ local Passed, Statement = pcall(function()
 									Value:Disconnect()
 								end
 								--
-								InputCheck:Disconnect()
+								if InputCheck then InputCheck:Disconnect() end
 								--
 								for Index, Value in pairs(Open) do
-									Value[2]:Remove()
 									Value[3]:Remove()
 									Value[4]:Remove()
-									Value[5]:Remove()
 								end
 								--
 								Content_Open_Holder:Remove()
@@ -1951,7 +1743,6 @@ local Passed, Statement = pcall(function()
 							function Content.Content:Refresh(state)
 								for Index, Value in pairs(Open) do
 									Value[2].TextColor3 = table.find(Content.State, Value[1]) and Content.Window.Accent or Color3.fromRGB(205, 205, 205)
-									Value[3].TextColor3 = table.find(Content.State, Value[1]) and Content.Window.Accent or Color3.fromRGB(205, 205, 205)
 								end
 							end
 						end
@@ -1965,10 +1756,15 @@ local Passed, Statement = pcall(function()
 							task.wait()
 							--
 							InputCheck = utility:CreateConnection(uis.InputBegan, function(Input)
-								if Content.Content.Open and Input.UserInputType == Enum.UserInputType.MouseButton1 then
-									local Mouse = utility:MouseLocation()
+								if Content.Content.Open and (Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch) then
+									local pos
+									if Input.UserInputType == Enum.UserInputType.Touch then
+										pos = Vector2.new(Input.Position.X, Input.Position.Y)
+									else
+										pos = utility:MouseLocation()
+									end
 									--
-									if not (Mouse.X > Content_Open_Holder.AbsolutePosition.X and Mouse.Y > (Content_Open_Holder.AbsolutePosition.Y + 36) and Mouse.X < (Content_Open_Holder.AbsolutePosition.X + Content_Open_Holder.AbsoluteSize.X) and Mouse.Y < (Content_Open_Holder.AbsolutePosition.Y + Content_Open_Holder.AbsoluteSize.Y + 36)) then
+									if not (pos.X > Content_Open_Holder.AbsolutePosition.X and pos.Y > (Content_Open_Holder.AbsolutePosition.Y + 36) and pos.X < (Content_Open_Holder.AbsolutePosition.X + Content_Open_Holder.AbsoluteSize.X) and pos.Y < (Content_Open_Holder.AbsolutePosition.Y + Content_Open_Holder.AbsoluteSize.Y + 36)) then
 										Content.Section:CloseContent()
 									end
 								end
@@ -1978,20 +1774,12 @@ local Passed, Statement = pcall(function()
 				end
 				--
 				do -- // Connections
-					utility:CreateConnection(Content_Holder_Button.MouseButton1Down, function(Input)
+					utility:BindButton(Content_Holder_Button, function()
 						if Content.Content.Open then
 							Content.Section:CloseContent()
 						else
 							Content:Open()
 						end
-					end)
-                    --
-					utility:CreateConnection(Content_Holder_Button.MouseEnter, function(Input)
-						Holder_Outline_Frame.BackgroundColor3 = Color3.fromRGB(46, 46, 46)
-					end)
-					--
-					utility:CreateConnection(Content_Holder_Button.MouseLeave, function(Input)
-						Holder_Outline_Frame.BackgroundColor3 = Content.Content.Open and Color3.fromRGB(46, 46, 46) or Color3.fromRGB(36, 36, 36)
 					end)
 				end
 				--
@@ -2049,26 +1837,6 @@ local Passed, Statement = pcall(function()
 					TextColor3 = Color3.fromRGB(205, 205, 205),
 					TextSize = 9,
 					TextStrokeTransparency = 1,
-					TextXAlignment = "Left"
-				})
-				--
-				local Content_Holder_Title2 = utility:RenderObject("TextLabel", {
-					AnchorPoint = Vector2.new(0, 0),
-					BackgroundColor3 = Color3.fromRGB(0, 0, 0),
-					BackgroundTransparency = 1,
-					BorderColor3 = Color3.fromRGB(0, 0, 0),
-					BorderSizePixel = 0,
-					Parent = Content_Holder,
-					Position = UDim2.new(0, 41, 0, 0),
-					Size = UDim2.new(1, -41, 1, 0),
-					ZIndex = 3,
-					Font = "Code",
-					RichText = true,
-					Text = Content.Name,
-					TextColor3 = Color3.fromRGB(205, 205, 205),
-					TextSize = 9,
-					TextStrokeTransparency = 1,
-					TextTransparency = 0.5,
 					TextXAlignment = "Left"
 				})
 				--
@@ -2137,22 +1905,10 @@ local Passed, Statement = pcall(function()
 				end
 				--
 				do -- // Connections
-					utility:CreateConnection(Content_Holder_Button.MouseButton1Click, function(Input)
+					utility:BindButton(Content_Holder_Button, function()
 						Content.Holding = true
                         --
                         Content_Holder_Value.TextColor3 = Color3.fromRGB(255, 0, 0)
-					end)
-                    --
-                    utility:CreateConnection(Content_Holder_Button.MouseButton2Click, function(Input)
-						Content:Set()
-					end)
-                    --
-					utility:CreateConnection(Content_Holder_Button.MouseEnter, function(Input)
-						Content_Holder_Value.TextColor3 = Color3.fromRGB(164, 164, 164)
-					end)
-					--
-					utility:CreateConnection(Content_Holder_Button.MouseLeave, function(Input)
-						Content_Holder_Value.TextColor3 = Content.Holding and Color3.fromRGB(255, 0, 0) or Color3.fromRGB(114, 114, 114)
 					end)
                     --
                     utility:CreateConnection(uis.InputBegan, function(Input)
@@ -2250,26 +2006,6 @@ local Passed, Statement = pcall(function()
 					TextXAlignment = "Left"
 				})
 				--
-				local Content_Holder_Title2 = utility:RenderObject("TextLabel", {
-					AnchorPoint = Vector2.new(0, 0),
-					BackgroundColor3 = Color3.fromRGB(0, 0, 0),
-					BackgroundTransparency = 1,
-					BorderColor3 = Color3.fromRGB(0, 0, 0),
-					BorderSizePixel = 0,
-					Parent = Content_Holder,
-					Position = UDim2.new(0, 41, 0, 0),
-					Size = UDim2.new(1, -41, 1, 0),
-					ZIndex = 3,
-					Font = "Code",
-					RichText = true,
-					Text = Content.Name,
-					TextColor3 = Color3.fromRGB(205, 205, 205),
-					TextSize = 9,
-					TextStrokeTransparency = 1,
-					TextTransparency = 0.5,
-					TextXAlignment = "Left"
-				})
-				--
 				local Content_Holder_Button = utility:RenderObject("TextButton", {
 					BackgroundColor3 = Color3.fromRGB(0, 0, 0),
 					BackgroundTransparency = 1,
@@ -2289,13 +2025,6 @@ local Passed, Statement = pcall(function()
 					Position = UDim2.new(0, 1, 0, 1),
 					Size = UDim2.new(1, -2, 1, -2),
 					ZIndex = 3
-				})
-				-- //
-				local Outline_Frame_Gradient = utility:RenderObject("UIGradient", {
-					Color = ColorSequence.new(Color3.fromRGB(255, 255, 255), Color3.fromRGB(140, 140, 140)),
-					Enabled = true,
-					Rotation = 90,
-					Parent = Holder_Outline_Frame
 				})
 				--
 				do -- // Functions
@@ -2329,17 +2058,6 @@ local Passed, Statement = pcall(function()
 							ZIndex = 6
 						})
 						-- //
-						local Open_Holder_Button = utility:RenderObject("TextButton", {
-							BackgroundColor3 = Color3.fromRGB(0, 0, 0),
-							BackgroundTransparency = 1,
-							BorderColor3 = Color3.fromRGB(0, 0, 0),
-							BorderSizePixel = 0,
-							Parent = Content_Open_Holder,
-							Position = UDim2.new(0, -1, 0, -1),
-							Size = UDim2.new(1, 2, 1, 2),
-							Text = ""
-						})
-						-- //
 						local Open_Holder_Outline = utility:RenderObject("Frame", {
 							BackgroundColor3 = Color3.fromRGB(60, 60, 60),
 							BackgroundTransparency = 0,
@@ -2362,50 +2080,6 @@ local Passed, Statement = pcall(function()
 							Size = UDim2.new(1, -2, 1, -2),
 							ZIndex = 6
 						})
-						-- //
-						local ValSat_Picker_Outline = utility:RenderObject("Frame", {
-							BackgroundColor3 = Color3.fromRGB(12, 12, 12),
-							BackgroundTransparency = 0,
-							BorderColor3 = Color3.fromRGB(0, 0, 0),
-							BorderSizePixel = 0,
-							Parent = Open_Outline_Frame,
-							Position = UDim2.new(0, 2, 0, 2),
-							Size = UDim2.new(0, 152, 0, 152),
-							ZIndex = 6
-						})
-						--
-						local Hue_Picker_Outline = utility:RenderObject("Frame", {
-							BackgroundColor3 = Color3.fromRGB(12, 12, 12),
-							BackgroundTransparency = 0,
-							BorderColor3 = Color3.fromRGB(0, 0, 0),
-							BorderSizePixel = 0,
-							Parent = Open_Outline_Frame,
-							Position = UDim2.new(1, -19, 0, 2),
-							Size = UDim2.new(0, 17, 0, 152),
-							ZIndex = 6
-						})
-						--
-						local Transparency_Picker_Outline = utility:RenderObject("Frame", {
-							BackgroundColor3 = Color3.fromRGB(12, 12, 12),
-							BackgroundTransparency = 0,
-							BorderColor3 = Color3.fromRGB(0, 0, 0),
-							BorderSizePixel = 0,
-							Parent = Open_Outline_Frame,
-							Position = UDim2.new(0, 2, 1, -14),
-							Size = UDim2.new(0, 152, 0, 12),
-							ZIndex = 6
-						})
-						-- //
-						local ValSat_Picker_Color = utility:RenderObject("Frame", {
-							BackgroundColor3 = Color3.fromRGB(255, 12, 12),
-							BackgroundTransparency = 0,
-							BorderColor3 = Color3.fromRGB(0, 0, 0),
-							BorderSizePixel = 0,
-							Parent = ValSat_Picker_Outline,
-							Position = UDim2.new(0, 1, 0, 1),
-							Size = UDim2.new(1, -2, 1, -2),
-							ZIndex = 6
-						})
 						--
 						do -- // Functions
 							function Content.Content:Close()
@@ -2415,7 +2089,7 @@ local Passed, Statement = pcall(function()
 									Value:Disconnect()
 								end
 								--
-								InputCheck:Disconnect()
+								if InputCheck then InputCheck:Disconnect() end
 								--
 								Content_Open_Holder:Remove()
 								--
@@ -2434,11 +2108,16 @@ local Passed, Statement = pcall(function()
 						--
 						do -- // Connections
 							InputCheck = utility:CreateConnection(uis.InputBegan, function(Input)
-								if Content.Content.Open and Input.UserInputType == Enum.UserInputType.MouseButton1 then
-									local Mouse = utility:MouseLocation()
+								if Content.Content.Open and (Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch) then
+									local pos
+									if Input.UserInputType == Enum.UserInputType.Touch then
+										pos = Vector2.new(Input.Position.X, Input.Position.Y)
+									else
+										pos = utility:MouseLocation()
+									end
 									--
-									if not (Mouse.X > Content_Open_Holder.AbsolutePosition.X and Mouse.Y > (Content_Open_Holder.AbsolutePosition.Y + 36) and Mouse.X < (Content_Open_Holder.AbsolutePosition.X + Content_Open_Holder.AbsoluteSize.X) and Mouse.Y < (Content_Open_Holder.AbsolutePosition.Y + Content_Open_Holder.AbsoluteSize.Y + 36)) then
-										if not (Mouse.X > Content_Holder.AbsolutePosition.X and Mouse.Y > (Content_Holder.AbsolutePosition.Y) and Mouse.X < (Content_Holder.AbsolutePosition.X + Content_Holder.AbsoluteSize.X) and Mouse.Y < (Content_Holder.AbsolutePosition.Y + Content_Holder.AbsoluteSize.Y)) then
+									if not (pos.X > Content_Open_Holder.AbsolutePosition.X and pos.Y > (Content_Open_Holder.AbsolutePosition.Y + 36) and pos.X < (Content_Open_Holder.AbsolutePosition.X + Content_Open_Holder.AbsoluteSize.X) and pos.Y < (Content_Open_Holder.AbsolutePosition.Y + Content_Open_Holder.AbsoluteSize.Y + 36)) then
+										if not (pos.X > Content_Holder.AbsolutePosition.X and pos.Y > (Content_Holder.AbsolutePosition.Y) and pos.X < (Content_Holder.AbsolutePosition.X + Content_Holder.AbsoluteSize.X) and pos.Y < (Content_Holder.AbsolutePosition.Y + Content_Holder.AbsoluteSize.Y)) then
 											if Content.Content.Open then
 												Content.Section:CloseContent()
 											end
@@ -2451,20 +2130,12 @@ local Passed, Statement = pcall(function()
 				end
 				--
 				do -- // Connections
-					utility:CreateConnection(Content_Holder_Button.MouseButton1Click, function(Input)
+					utility:BindButton(Content_Holder_Button, function()
 						if Content.Content.Open then
 							Content.Section:CloseContent()
 						else
 							Content:Open()
 						end
-					end)
-					--
-					utility:CreateConnection(Content_Holder_Button.MouseEnter, function(Input)
-						Outline_Frame_Gradient.Color = ColorSequence.new(Color3.fromRGB(255, 255, 255), Color3.fromRGB(180, 180, 180))
-					end)
-					--
-					utility:CreateConnection(Content_Holder_Button.MouseLeave, function(Input)
-						Outline_Frame_Gradient.Color = ColorSequence.new(Color3.fromRGB(255, 255, 255), Color3.fromRGB(140, 140, 140))
 					end)
 				end
 				--

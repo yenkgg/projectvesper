@@ -85,6 +85,19 @@ local Passed, Statement = pcall(function()
 			Mobile = mobile
 		}
 		--
+		-- Mobile sizing: use viewport-aware size so nothing goes off-screen
+		local viewport = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize or Vector2.new(1920, 1080)
+		local isSmallMobile = mobile and viewport.X < 700
+		local winSize
+		if mobile then
+			-- Fit within 90% of screen on mobile
+			local w = math.clamp(viewport.X * 0.92, 320, 560)
+			local h = math.clamp(viewport.Y * 0.75, 320, 480)
+			winSize = UDim2.new(0, w, 0, h)
+		else
+			winSize = UDim2.new(0, 660, 0, 560)
+		end
+		--
 		do
 			local ScreenGui = utility:RenderObject("ScreenGui", {
 				DisplayOrder = 9999,
@@ -104,9 +117,9 @@ local Passed, Statement = pcall(function()
 				BorderSizePixel = 1,
 				Parent = ScreenGui,
 				Position = UDim2.new(0.5, 0, 0.5, 0),
-				Size = mobile and UDim2.new(0, 480, 0, 400) or UDim2.new(0, 660, 0, 560), -- Smaller on mobile
-				Active = true, -- Make frame draggable
-				Draggable = true -- Enable dragging
+				Size = winSize,
+				Active = true,
+				Draggable = true
 			})
 			-- //
 			local ScreenGui_MainFrame_InnerBorder = utility:RenderObject("Frame", {
@@ -137,7 +150,7 @@ local Passed, Statement = pcall(function()
 				BorderSizePixel = 0,
 				Parent = MainFrame_InnerBorder_InnerFrame,
 				Position = UDim2.new(0, 0, 0, 4),
-				Size = mobile and UDim2.new(0, 60, 1, -4) or UDim2.new(0, 74, 1, -4) -- Smaller tabs on mobile
+				Size = mobile and UDim2.new(0, 56, 1, -4) or UDim2.new(0, 74, 1, -4)
 			})
 			--
 			local InnerBorder_InnerFrame_Pages = utility:RenderObject("Frame", {
@@ -148,7 +161,7 @@ local Passed, Statement = pcall(function()
 				BorderSizePixel = 0,
 				Parent = MainFrame_InnerBorder_InnerFrame,
 				Position = UDim2.new(1, 0, 0, 4),
-				Size = mobile and UDim2.new(1, -59, 1, -4) or UDim2.new(1, -73, 1, -4)
+				Size = mobile and UDim2.new(1, -55, 1, -4) or UDim2.new(1, -73, 1, -4)
 			})
 			--
 			local InnerBorder_InnerFrame_TopGradient = utility:RenderObject("Frame", {
@@ -299,63 +312,53 @@ local Passed, Statement = pcall(function()
 				if mobile then
 					local ToggleButton = utility:RenderObject("TextButton", {
 						BackgroundColor3 = Color3.fromRGB(255, 120, 30),
-						BackgroundTransparency = 0.15,
-						BorderColor3 = Color3.fromRGB(12, 12, 12),
+						BackgroundTransparency = 0.5, -- Translucent
+						BorderColor3 = Color3.fromRGB(255, 255, 255),
 						BorderMode = "Inset",
 						BorderSizePixel = 1,
 						Parent = ScreenGui,
-						Position = UDim2.new(0, 20, 0.5, -25),
-						Size = UDim2.new(0, 50, 0, 50),
-						Text = "☰",
+						Position = UDim2.new(0, 16, 0, 16),
+						Size = UDim2.new(0, 110, 0, 40),
+						Text = "Toggle UI",
 						TextColor3 = Color3.fromRGB(255, 255, 255),
-						TextSize = 26,
+						TextSize = 14,
 						Font = "Code",
+						TextStrokeTransparency = 0.3,
 						ZIndex = 10,
 						Active = true,
-						Draggable = true -- Allows the user to reposition the button
+						Draggable = true
 					})
 
-					-- Corner rounding for a cleaner look
 					utility:RenderObject("UICorner", {
 						CornerRadius = UDim.new(0, 8),
 						Parent = ToggleButton
 					})
 
-					-- Subtle gradient
 					utility:RenderObject("UIGradient", {
 						Color = ColorSequence.new(Color3.fromRGB(255, 150, 60), Color3.fromRGB(200, 80, 10)),
 						Rotation = 90,
+						Transparency = NumberSequence.new(0.3, 0.6),
 						Parent = ToggleButton
 					})
 
-					-- Toggle visibility of the main window on tap
+					-- Toggle visibility on tap
 					utility:CreateConnection(ToggleButton.MouseButton1Click, function()
 						Window.Enabled = not Window.Enabled
 						Window:Fade(Window.Enabled)
-
-						-- Swap the icon so it reflects the current state
-						ToggleButton.Text = Window.Enabled and "☰" or "✕"
 					end)
 
-					-- Visual feedback on press
+					-- Press feedback
 					utility:CreateConnection(ToggleButton.MouseButton1Down, function()
 						tws:Create(ToggleButton, TweenInfo.new(0.1), {
-							BackgroundTransparency = 0.35
+							BackgroundTransparency = 0.7
 						}):Play()
 					end)
 
 					utility:CreateConnection(ToggleButton.MouseButton1Up, function()
 						tws:Create(ToggleButton, TweenInfo.new(0.1), {
-							BackgroundTransparency = 0.15
+							BackgroundTransparency = 0.5
 						}):Play()
 					end)
-
-					-- Keep icon in sync if the window is toggled elsewhere
-					local originalFade = Window.Fade
-					Window.Fade = function(self, state)
-						originalFade(self, state)
-						ToggleButton.Text = state and "☰" or "✕"
-					end
 				end
 			end
 		end
@@ -368,7 +371,7 @@ local Passed, Statement = pcall(function()
 		--
 		local Page = {
 			Image = (Properties.image or Properties.Image or Properties.icon or Properties.Icon),
-			Size = (Properties.size or Properties.Size or (mobile and UDim2.new(0, 40, 0, 40) or UDim2.new(0, 50, 0, 50))), -- Smaller icons on mobile
+			Size = (Properties.size or Properties.Size or (mobile and UDim2.new(0, 34, 0, 34) or UDim2.new(0, 50, 0, 50))),
 			Open = false,
 			Window = self
 		}
@@ -380,7 +383,7 @@ local Passed, Statement = pcall(function()
 				BorderColor3 = Color3.fromRGB(0, 0, 0),
 				BorderSizePixel = 0,
 				Parent = Page.Window["TabsHolder"],
-				Size = mobile and UDim2.new(1, 0, 0, 60) or UDim2.new(1, 0, 0, 72) -- Smaller tabs on mobile
+				Size = mobile and UDim2.new(1, 0, 0, 48) or UDim2.new(1, 0, 0, 72)
 			})
 			-- //
 			local Page_Tab_Border = utility:RenderObject("Frame", {
@@ -464,11 +467,12 @@ local Passed, Statement = pcall(function()
 				BorderColor3 = Color3.fromRGB(0, 0, 0),
 				BorderSizePixel = 0,
 				Parent = Page.Window["PagesHolder"],
-				Position = UDim2.new(0, 20, 0, 20),
-				Size = UDim2.new(1, -40, 1, -40),
+				Position = mobile and UDim2.new(0, 10, 0, 10) or UDim2.new(0, 20, 0, 20),
+				Size = mobile and UDim2.new(1, -20, 1, -20) or UDim2.new(1, -40, 1, -40),
 				Visible = false
 			})
 			-- //
+			-- On mobile: single scrolling column. On PC: two side-by-side columns.
 			local Page_Page_Left = utility:RenderObject("Frame", {
 				BackgroundColor3 = Color3.fromRGB(0, 0, 0),
 				BackgroundTransparency = 1,
@@ -476,7 +480,7 @@ local Passed, Statement = pcall(function()
 				BorderSizePixel = 0,
 				Parent = Page_Page,
 				Position = UDim2.new(0, 0, 0, 0),
-				Size = mobile and UDim2.new(1, 0, 0.5, -5) or UDim2.new(0.5, -10, 1, 0) -- Stack vertically on mobile
+				Size = mobile and UDim2.new(1, 0, 1, 0) or UDim2.new(0.5, -10, 1, 0)
 			})
 			--
 			local Page_Page_Right = utility:RenderObject("Frame", {
@@ -485,10 +489,40 @@ local Passed, Statement = pcall(function()
 				BorderColor3 = Color3.fromRGB(0, 0, 0),
 				BorderSizePixel = 0,
 				Parent = Page_Page,
-				Position = mobile and UDim2.new(0, 0, 0.5, 5) or UDim2.new(0.5, 10, 0, 0), -- Stack vertically on mobile
-				Size = mobile and UDim2.new(1, 0, 0.5, -5) or UDim2.new(0.5, -10, 1, 0)
+				Position = mobile and UDim2.new(0, 0, 0, 0) or UDim2.new(0.5, 10, 0, 0),
+				Size = mobile and UDim2.new(1, 0, 1, 0) or UDim2.new(0.5, -10, 1, 0),
+				Visible = not mobile -- Hide right column on mobile
 			})
 			-- //
+			-- On mobile, use a ScrollingFrame so all sections are reachable
+			local LeftScroll = utility:RenderObject("ScrollingFrame", {
+				BackgroundColor3 = Color3.fromRGB(0, 0, 0),
+				BackgroundTransparency = 1,
+				BorderSizePixel = 0,
+				Parent = Page_Page_Left,
+				Position = UDim2.new(0, 0, 0, 0),
+				Size = UDim2.new(1, 0, 1, 0),
+				AutomaticCanvasSize = "Y",
+				CanvasSize = UDim2.new(0, 0, 0, 0),
+				ScrollBarImageColor3 = Color3.fromRGB(65, 65, 65),
+				ScrollBarThickness = 5,
+				ScrollBarImageTransparency = 0.4,
+				VerticalScrollBarInset = "None",
+				Visible = mobile
+			})
+			utility:RenderObject("UIListLayout", {
+				Padding = UDim.new(0, 10),
+				Parent = LeftScroll,
+				FillDirection = "Vertical",
+				HorizontalAlignment = "Center",
+				VerticalAlignment = "Top"
+			})
+			utility:RenderObject("UIPadding", {
+				Parent = LeftScroll,
+				PaddingTop = UDim.new(0, 6),
+				PaddingBottom = UDim.new(0, 20)
+			})
+
 			local Page_Left_List = utility:RenderObject("UIListLayout", {
 				Padding = UDim.new(0, 18),
 				Parent = Page_Page_Left,
@@ -509,6 +543,7 @@ local Passed, Statement = pcall(function()
 				Page["Page"] = Page_Page
 				Page["Left"] = Page_Page_Left
 				Page["Right"] = Page_Page_Right
+				Page["MobileScroll"] = LeftScroll
 			end
 			--
 			do -- // Functions
@@ -552,7 +587,8 @@ local Passed, Statement = pcall(function()
 		--
 		local Section = {
 			Name = (Properties.name or Properties.Name or Properties.title or Properties.Title or "New Section"),
-			Size = (Properties.size or Properties.Size or (mobile and 120 or 150)), -- Smaller sections on mobile
+			-- On mobile, let the section auto-size to content instead of fixed height
+			Size = (Properties.size or Properties.Size or (mobile and 200 or 150)),
 			Side = (Properties.side or Properties.Side or "Left"),
 			Content = {},
 			Window = self.Window,
@@ -560,14 +596,18 @@ local Passed, Statement = pcall(function()
 		}
 		--
 		do
+			-- On mobile, parent to the page's mobile scroll frame; on PC, parent to Left/Right column
+			local parentFrame = mobile and Section.Page.MobileScroll or Section.Page[Section.Side]
+
 			local Section_Holder = utility:RenderObject("Frame", {
 				BackgroundColor3 = Color3.fromRGB(40, 40, 40),
 				BackgroundTransparency = 0,
 				BorderColor3 = Color3.fromRGB(12, 12, 12),
 				BorderMode = "Inset",
 				BorderSizePixel = 1,
-				Parent = Section.Page[Section.Side],
-				Size = UDim2.new(1, 0, 0, Section.Size),
+				Parent = parentFrame,
+				-- On mobile use fixed section height (content scrolls inside); on PC same behavior
+				Size = mobile and UDim2.new(1, -12, 0, 320) or UDim2.new(1, 0, 0, Section.Size),
 				ZIndex = 2
 			})
 			-- //
